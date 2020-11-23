@@ -1,77 +1,55 @@
-1. Create docker image with library dependencies needed. 
+Automating Hive Query
 
-Eg. : 
+    1. Login in EMR (with hive hadoop)
+       > open terminal and make ssh access to your EMR in which cluster is made.
+       e.g: ssh -i <location of emrkey in local machine> hadoop@ec2-54-172-255-35.compute-1amazonaws.com
 
- 
+    2. Make a two shell script to execute all the installation environment needed to run Hive:
+       > First script is to create mini.sh to execute installation for minicoda: below is the content for mini.sh,(chmod +x mini.sh, to make the script executable).
+       wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
+       bash ~/miniconda.sh -b -p $HOME/miniconda
+       conda init bash
+       eval "$(/home/hadoop/miniconda/bin/conda shell.bash hook)"
+       
+       > Second script is for automating installation for hive environment. In this case we create rec.sh (make sure to change mode to executable (chmod +x rec.sh)) . Rec.sh content:
+       conda create --name py38 python=3.8
+       conda init bash
+       conda activate py38
+       pip3 install pandas
+       pip3 install pyhive
+       pip3 install wheel
+       pip3 install thrift
+       sudo yum install python3-devel
+       sudo yum install gcc-c++ python-devel.x86_64 cyrus-sasl-devel.x86_64
+       pip3 install thrift-sasl
+    3. now you can both scripts assuming it is in executable mode(chmod +x <shell_name>) via
+       > . ./mini.sh –  to run installation for minicoda
+       > . ./rec.sh – to run installation for hive environment
+       
+    4. copy the commmand to aws location:
+       aws s3 cp /bucketpath/mini.sh
+       aws s3 cp /bucketpath/rec.sh
+       5. Now create python script to query hive database, below is the python script for data base query: (in this case we create test.py)
+       
+       from pyhive import hive
+       import pandas
+       
+       conn = hive.Connection(host='localhost', port=10000,  database='default')
+       cursor = conn.cursor()
+       sql = 'show databases'
+       cursor.execute(sql)
+       print (cursor.fetchall())
+       df = pandas.read_sql(sql, conn)
+       print (df)
+       
 
-#!/bin/bash 
+       6. Try to run test.py using command:
+       > python3 test.py
+       
+       
+       
+																				
 
-FROM python:3.8 
 
-WORKDIR /code 
 
-RUN apt update 
-
-RUN pip3 install pandas 
-
-RUN pip3 install pyhive 
-
-RUN pip3 install wheel 
-
-RUN pip3 install thrift 
-
-RUN yes | apt-get install python-dev libsasl2-dev gcc 
-
-RUN pip3 install thrift-sasl 
-
-RUN pip install cassandra-driver 
-
-RUN pip install boto3 
-
-#CMD ["python3", "test.py"] 
-
- 
-2. make your docker image a tar file. 
-
-> sudo docker save -o <path for generated tar file> <image name> 
-
- 
-3. Download your docker image to desired s3 bucket 
-4. make a shell script and download it as well into the s3 bucket for bootstrapping process containing command: 
-#~: 
-#! /bin/bash 
-aws s3 cp s3://path/for/docker.tar /home/hadoop 
- 
-
-5. Create cluster and make a bootstrap action>custom action and load the created script on your s3 bucket. Docker command: 
-6. wait 23-25 minutes for bootstrapping depending on the image size/memory size. 
-7. now if emr cluster already created, ssh on the terminal and load the docker.tar. 
-
-Enter command to load docker image: 
-
- 
-
- 
-Note: make sure the docker is already installed already started. to check, enter command.  
-> docker - -version. 
-
- 
-8. assuming docker is already installed already started. enter command to load the docker tar file: 
-> #~:  docker load -i <path to image tar file> 
-wait a few minutes for loading the docker. 
-
- 
-9. check if docker images is already created: 
-> sudo docker images 
-10. run your docker image first: 
-> sudo docker run -t -d <container_imageid> 
-11. now start docker image: 
->sudo docker exec -it <container_id> /bin/bashDone, you can check the dependencies/software you downloaded on the docker Image. 
-
- 
-
- 
-
- 
-
-Done, you can check the dependencies/software you downloaded on the docker Image. 
+END
